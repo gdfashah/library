@@ -1,0 +1,834 @@
+<title>FCMS Library Module</title>
+<style>
+/* Layout: FCMS shell (navy sidebar) + library sub-nav tabs + one working view at a time.
+   Office standard: Arial, body 12px, headers 14px, no grey text, air-force blue family. */
+:root{
+  --navy:#0A2647;      /* sidebar, primary buttons */
+  --blue:#144C8C;      /* accent / links / focus */
+  --blue-soft:#E3ECF8; /* selected fills */
+  --bg:#EDF1F7;        /* page ground, blue-biased neutral */
+  --surface:#FFFFFF;
+  --line:#C9D4E3;
+  --ink:#0B1A2E;       /* all text */
+  --ink-2:#1E3350;     /* secondary text, still dark */
+  --gold:#C9A227;
+  --ok:#0B6B3A; --ok-bg:#DDF2E6;
+  --warn:#8A4B00; --warn-bg:#FCEBD2;
+  --bad:#A61B1B; --bad-bg:#FBE1E1;
+  --font:Arial, Helvetica, sans-serif;
+  --r:6px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:12px/1.5 var(--font)}
+button,input,select,textarea{font:inherit;color:var(--ink)}
+h1,h2,h3{font-size:14px;margin:0;line-height:1.3;text-wrap:balance}
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100%}
+
+/* sidebar */
+.side{background:var(--navy);color:#fff;padding:14px 10px;display:flex;flex-direction:column;gap:14px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;gap:10px;align-items:center;padding:4px 6px}
+.brand .logo{width:34px;height:34px;border-radius:8px;background:var(--gold);color:var(--navy);display:grid;place-items:center;font-weight:700;font-size:16px}
+.brand b{display:block;font-size:14px}.brand span{font-size:10px;letter-spacing:.06em}
+.side nav{display:flex;flex-direction:column;gap:2px}
+.side a{color:#fff;text-decoration:none;padding:8px 10px;border-radius:var(--r);display:flex;gap:10px;align-items:center;cursor:pointer}
+.side a:hover{background:rgba(255,255,255,.08)}
+.side a.on{background:#fff;color:var(--navy);font-weight:700}
+.side .grp{font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px 2px;color:#fff;font-weight:700}
+.side svg{width:16px;height:16px;flex:none}
+.side .other{opacity:.85}
+
+/* main */
+main{padding-block:18px 40px;padding-inline:22px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.crumb{color:var(--ink-2)}.crumb b{color:var(--blue)}
+.sample{background:var(--warn-bg);color:var(--warn);border:1px solid #F0C98E;padding:3px 8px;border-radius:20px;font-weight:700;font-size:11px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:4px;margin-bottom:16px;position:relative}
+.tabs button{border:0;background:none;padding:8px 12px;border-radius:4px;cursor:pointer;font-weight:700;color:var(--ink-2);display:flex;gap:6px;align-items:center;position:relative;z-index:1}
+.tabs button.on{color:#fff}
+.tabs .pill{position:absolute;top:4px;left:4px;height:calc(100% - 8px);background:var(--navy);border-radius:4px;transition:transform .35s cubic-bezier(.2,.8,.2,1),width .35s cubic-bezier(.2,.8,.2,1);z-index:0}
+.tabs .n{background:var(--bad);color:#fff;border-radius:10px;padding:0 6px;font-size:10px}
+
+.view{animation:enter .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes enter{from{transform:translateY(10px);opacity:.2}to{transform:none;opacity:1}}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.head p{margin:2px 0 0;color:var(--ink-2)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card>h2{margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-issue{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>*{flex:1 1 140px;min-width:0}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--navy)}
+.kpi .l{font-weight:700;color:var(--ink-2);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.kpi.alert{border-color:#E9A3A3;background:linear-gradient(var(--surface),var(--bad-bg))}
+.kpi.alert .v{color:var(--bad)}
+.kpi small{color:var(--ink-2)}
+
+/* forms */
+label.f{display:flex;flex-direction:column;gap:4px;font-weight:700}
+label.f span.h{font-weight:400;color:var(--ink-2);font-size:11px}
+input[type=text],input[type=number],input[type=date],input[type=search],select,textarea{border:1px solid #9FB1C9;border-radius:var(--r);padding:8px 10px;background:#fff;width:100%;min-width:0;transition:border-color .2s,box-shadow .2s}
+input::placeholder,textarea::placeholder{color:#4A5D78}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(20,76,140,.2)}
+.err input,.err select{border-color:var(--bad)}
+.msg{font-size:11px;font-weight:700;color:var(--bad)}
+.scan{position:relative}
+.scan input{padding-left:34px}
+.scan svg{position:absolute;left:10px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:var(--blue)}
+.scan.live::after{content:"";position:absolute;inset:-1px;border-radius:var(--r);border:2px solid var(--blue);animation:ping 1.6s ease-out infinite;pointer-events:none}
+@keyframes ping{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.04,1.25)}}
+.btn{border:1px solid var(--navy);background:var(--navy);color:#fff;padding:8px 14px;border-radius:var(--r);font-weight:700;cursor:pointer;display:inline-flex;gap:6px;align-items:center;justify-content:center;transition:transform .12s,background .2s;white-space:nowrap}
+.btn:hover{background:var(--blue);border-color:var(--blue)}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:#fff;color:var(--navy)}
+.btn.ghost:hover{background:var(--blue-soft)}
+.btn.danger{background:var(--bad);border-color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:14px;height:14px}
+.seg{display:inline-flex;border:1px solid var(--navy);border-radius:var(--r);overflow:hidden}
+.seg button{border:0;background:#fff;color:var(--navy);padding:7px 14px;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--navy);color:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;padding:4px 10px;border-radius:20px;cursor:pointer;font-weight:700;color:var(--ink-2)}
+.chip.on{background:var(--blue-soft);border-color:var(--blue);color:var(--navy)}
+.try{color:var(--ink-2)}
+.try button{border:0;background:none;color:var(--blue);font-weight:700;cursor:pointer;text-decoration:underline;padding:0 2px}
+
+/* status */
+.st{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:20px;font-weight:700;font-size:11px;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.ok{background:var(--ok-bg);color:var(--ok)}
+.st.warn{background:var(--warn-bg);color:var(--warn)}
+.st.bad{background:var(--bad-bg);color:var(--bad)}
+.st.mute{background:#E4E9F1;color:var(--ink-2)}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:inherit}
+th{background:#E6EDF6;text-align:left;font-weight:700;padding:8px 10px;white-space:nowrap;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td{padding:8px 10px;border-bottom:1px solid #E1E8F1;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr{animation:rowin .35s both cubic-bezier(.2,.8,.2,1)}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover td{background:#F2F6FB}
+@keyframes rowin{from{transform:translateX(-6px);opacity:.3}to{transform:none;opacity:1}}
+td.num,th.num{text-align:right}
+.mono{font-family:"Courier New",monospace;font-weight:700;font-size:12px}
+.empty{padding:26px;text-align:center;color:var(--ink-2)}
+.empty b{display:block;color:var(--ink);font-size:14px;margin-bottom:4px}
+
+/* borrower / book cards */
+.who{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:#F7FAFD;animation:pop .4s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{transform:scale(.96);opacity:.3}to{transform:none;opacity:1}}
+.av{width:42px;height:42px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.who .meta{flex:1;min-width:0}
+.who .meta b{font-size:14px;display:block}
+.limit{display:flex;gap:3px;margin-top:4px}
+.limit i{width:16px;height:6px;border-radius:3px;background:#D3DCE8}
+.limit i.u{background:var(--blue)}
+.limit i.o{background:var(--bad)}
+.notice{padding:10px 12px;border-radius:var(--r);font-weight:700;display:flex;gap:8px;align-items:flex-start}
+.notice.bad{background:var(--bad-bg);color:var(--bad)}
+.notice.warn{background:var(--warn-bg);color:var(--warn)}
+.notice.ok{background:var(--ok-bg);color:var(--ok)}
+.notice svg{width:16px;height:16px;flex:none;margin-top:1px}
+.book{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:var(--r);animation:pop .4s cubic-bezier(.2,.9,.3,1.2)}
+.spine{width:44px;height:58px;border-radius:3px 6px 6px 3px;background:linear-gradient(90deg,var(--navy) 0 7px,var(--blue) 7px);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;writing-mode:vertical-rl;text-orientation:mixed}
+.book b{display:block;font-size:13px}
+.kv{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--ink-2);margin-top:2px}
+.kv span b{display:inline;font-size:12px;color:var(--ink)}
+.cart{display:flex;flex-direction:column;gap:6px}
+.cart .it{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px dashed #9FB1C9;border-radius:var(--r);animation:drop .45s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes drop{from{transform:translateY(-14px) scale(.97);opacity:.2}to{transform:none;opacity:1}}
+.cart .it .t{flex:1;min-width:0}
+.x{border:0;background:none;cursor:pointer;color:var(--bad);font-weight:700;padding:4px}
+.sum{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap}
+.big{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* chart */
+.bars{display:flex;align-items:flex-end;gap:6px;height:150px;padding:8px 0 0;border-bottom:1px solid var(--line);position:relative}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;min-width:0}
+.bars .b i{display:block;width:100%;max-width:26px;background:var(--blue);border-radius:3px 3px 0 0;transform-origin:bottom;animation:grow .7s both cubic-bezier(.2,.8,.2,1)}
+.bars .b.today i{background:var(--gold)}
+.bars .b em{font-style:normal;font-size:10px;font-weight:700}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.axis{display:flex;gap:6px;margin-top:4px}
+.axis span{flex:1;text-align:center;font-size:10px;color:var(--ink-2);min-width:0}
+.hbar{display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:8px;align-items:center;margin:5px 0}
+.hbar .tr{height:10px;background:#E4EAF2;border-radius:5px;overflow:hidden}
+.hbar .tr i{display:block;height:100%;background:var(--blue);border-radius:5px;transform-origin:left;animation:growx .8s both cubic-bezier(.2,.8,.2,1)}
+@keyframes growx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.hbar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list{display:flex;flex-direction:column}
+.list .li{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #E1E8F1}
+.list .li:last-child{border-bottom:0}
+.list .li .t{flex:1;min-width:0}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(10,38,71,.35);animation:fade .25s;z-index:20}
+@keyframes fade{from{opacity:0}}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(420px,100%);background:#fff;z-index:21;padding:18px;overflow:auto;box-shadow:-10px 0 30px rgba(10,38,71,.2);animation:slide .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;gap:14px}
+@keyframes slide{from{transform:translateX(100%)}}
+.tl{border-left:2px solid var(--line);margin-left:6px;padding-left:14px;display:flex;flex-direction:column;gap:10px}
+.tl div{position:relative}.tl div::before{content:"";position:absolute;left:-20px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--blue)}
+
+/* accession preview */
+.labels{display:flex;flex-wrap:wrap;gap:8px}
+.lbl{border:1px solid var(--ink);border-radius:4px;padding:6px 8px 4px;background:#fff;width:118px;animation:pop .35s both cubic-bezier(.2,.9,.3,1.2)}
+.lbl .bc{height:22px;background:repeating-linear-gradient(90deg,var(--ink) 0 1px,transparent 1px 3px,var(--ink) 3px 5px,transparent 5px 6px,var(--ink) 6px 7px,transparent 7px 9px)}
+.lbl div{display:flex;justify-content:space-between;font-size:10px;font-weight:700;margin-top:3px}
+
+/* success */
+.done{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px;text-align:center}
+.done svg{width:64px;height:64px}
+.done circle{stroke:var(--ok);stroke-width:3;fill:var(--ok-bg);stroke-dasharray:180;stroke-dashoffset:180;animation:draw .5s forwards}
+.done path{stroke:var(--ok);stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:50;stroke-dashoffset:50;animation:draw .35s .45s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* reports */
+.rep{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.rc{border:1px solid var(--line);background:#fff;border-radius:var(--r);padding:12px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:4px;transition:transform .2s,box-shadow .2s,border-color .2s}
+.rc:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(10,38,71,.12);border-color:var(--blue)}
+.rc.on{border-color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy);background:#F5F8FC}
+.rc b{font-size:13px}.rc span{color:var(--ink-2)}
+.rc .tag{align-self:flex-start}
+
+/* category merge */
+.merge{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px}
+.merge .from{display:flex;flex-wrap:wrap;gap:6px}
+.merge .from span{background:var(--bad-bg);color:var(--bad);padding:2px 8px;border-radius:4px;font-weight:700;font-size:11px;transition:transform .45s cubic-bezier(.6,0,.4,1),opacity .45s}
+.merge.merging .from span{transform:translateY(18px) scale(.6);opacity:0}
+.merge .to{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.merge.done2{border-color:var(--ok);background:var(--ok-bg)}
+
+/* toast */
+.toasts{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));right:16px;display:flex;flex-direction:column;gap:8px;z-index:30;max-width:calc(100% - 32px)}
+.toast{background:var(--navy);color:#fff;padding:10px 14px;border-radius:var(--r);font-weight:700;box-shadow:0 8px 24px rgba(10,38,71,.3);animation:tin .35s cubic-bezier(.2,.9,.3,1.2)}
+.toast.ok{background:var(--ok)}.toast.bad{background:var(--bad)}
+@keyframes tin{from{transform:translateY(20px);opacity:0}}
+
+.inline-confirm{border:1px solid var(--bad);background:var(--bad-bg);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px;animation:pop .3s}
+
+.quiet .view,.quiet tbody tr,tbody tr.still{animation:none}
+td .acts{flex-wrap:nowrap}
+td.mono{white-space:nowrap}
+#stabs{display:flex;flex-wrap:wrap;width:fit-content;max-width:100%}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;padding:10px 16px}
+  .side nav,.side .grp{display:none}
+  main{padding-inline:16px}
+  .g2,.g3,.g-issue{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hbar{grid-template-columns:110px minmax(0,1fr) 36px}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;animation-delay:0ms!important;transition-duration:1ms!important}}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">F</div><div><b>FCMS</b><span>FAZAIA CHAIN MGMT</span></div></div>
+    <div class="grp">Library</div>
+    <nav id="sidenav"></nav>
+  </aside>
+  <main>
+    <div class="top">
+      <div class="crumb">Library › <b id="crumb">Dashboard</b></div>
+      <span class="sample">Prototype · sample data</span>
+    </div>
+    <div class="tabs" id="tabs"><span class="pill" id="pill"></span></div>
+    <div id="view"></div>
+  </main>
+</div>
+<div class="toasts" id="toasts"></div>
+<div id="layer"></div>
+
+<script>
+/* ---------- icons ---------- */
+const I={
+ dash:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+ out:'<path d="M4 4h10v16H4zM14 12h7M18 8l3 4-3 4"/>',
+ back:'<path d="M10 4h10v16H10zM10 12H3M7 8l-4 4 4 4"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+ chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+ cog:'<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.5a7 7 0 0 0-2 1.2l-2.4-.9-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-.9c.6.5 1.3.9 2 1.2L10 21h4l.5-2.5c.7-.3 1.4-.7 2-1.2l2.4.9 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/>',
+ scan:'<path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"/>',
+ warn:'<path d="M12 3l10 18H2zM12 10v5M12 18v.5"/>',
+ info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+ dl:'<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>'
+};
+const ic=(n,s='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${s}>${I[n]}</svg>`;
+
+/* ---------- dates ---------- */
+const TODAY=new Date();TODAY.setHours(0,0,0,0);
+const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmt=d=>{const x=new Date(d);return String(x.getDate()).padStart(2,'0')+'-'+MON[x.getMonth()]+'-'+x.getFullYear()};
+const daysBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+const rs=n=>'Rs '+Number(n).toLocaleString('en-PK');
+
+/* ---------- rules (Settings) ---------- */
+const RULES={student:{max:3,days:14,renew:1},staff:{max:5,days:30,renew:2},fine:10,grace:2,damaged:50,lost:100};
+
+/* ---------- clean categories ---------- */
+let CATS=[['DIC-E','Dictionaries (English)','English'],['DIC-U','Dictionaries (Urdu)','Urdu'],['ENC','Encyclopaedias','Bilingual'],['ISL','Islamiat & Religion','Bilingual'],['URL','Urdu Literature','Urdu'],['ENL','English Literature','English'],['FIC-E','Fiction (English)','English'],['FIC-U','Fiction (Urdu)','Urdu'],['PHY','Physics','English'],['CHE','Chemistry','English'],['BIO','Biology','English'],['MAT','Mathematics','English'],['CS','Computer Science','English'],['PKS','Pakistan Studies & History','Bilingual'],['PSY','Psychology & Self-help','English'],['GK','General Knowledge','Bilingual'],['TXT','Text Books','Bilingual']].map(c=>({code:c[0],name:c[1],lang:c[2],active:true}));
+const catNames=()=>CATS.filter(c=>c.active).map(c=>c.name);
+
+/* ---------- sample catalogue (titles taken from your Book Stock Report) ---------- */
+let BOOKS=[
+ [106,'Oxford Primary Dictionary','J Augared','Oxford Press','Dictionaries (English)','Primary',1,1,225,'2011-01-18'],
+ [107,'Oxford Primary Dictionary','J Augared','Oxford Press','Dictionaries (English)','Primary',1,1,225,'2011-01-18'],
+ [145,'Oxford Picture Dictionary','E C Parwell','Oxford','Dictionaries (English)','Primary',1,1,135,'2011-01-19'],
+ [8368,'Advanced Learning Dictionary','Collins','Cobuild','Dictionaries (English)','College',5,4,0,'2022-08-03'],
+ [3,'Paperback Encyclopedia','Collins','Harper Collins','Encyclopaedias','Secondary',1,1,650,'1999-07-28'],
+ [6609,'Mera Pehla Encyclopedia','Children','Children','Encyclopaedias','Primary',4,1,245,'2018-10-09'],
+ [8941,'Chemistry Grade 11','Prof Iqtidar','National','Chemistry','College',3,7,840,'2024-05-31'],
+ [8942,'Chemistry Grade 11','Prof Iqtidar','National','Chemistry','College',3,7,840,'2024-05-31'],
+ [6566,'Chemistry O Level','Paul','Oxford','Chemistry','Secondary',3,5,2100,'2018-10-09'],
+ [9062,'Text Book Chemistry Grade 12','National','National','Chemistry','College',3,8,590,'2025-07-19'],
+ [8943,'Biology Grade 11','Prof Jawaid','National','Biology','College',5,7,810,'2024-05-31'],
+ [9065,'Biology Grade 12','National','National','Biology','College',4,8,520,'2025-07-19'],
+ [6568,'Cambridge Biology','Mary Jones','Cambridge','Biology','Secondary',4,5,1750,'2018-10-09'],
+ [5503,'Complete Human Body','Anna','Usborne','Biology','Primary',3,3,650,'2013-01-19'],
+ [9115,'A Level Unsolved Topical Physics P1','MS Books','MS Books','Physics','College',1,7,2200,'2026-10-01'],
+ [9118,'A Level Solved Topical Physics P4','MS Books','MS Books','Physics','College',2,7,2200,'2026-10-01'],
+ [8248,'Cambridge O Level Physics','Tom','Hodder','Physics','Secondary',5,7,3095,'2021-11-12'],
+ [389,'Physics Objective for Class XI','Azhar Hussain','Ghulam Rasool','Physics','College',3,3,120,'2011-01-22'],
+ [390,'Physics Objective for Class XI','Azhar Hussain','Ghulam Rasool','Physics','College',3,3,120,'2011-01-22'],
+ [9068,'Physics Grade 12','National','National','Physics','College',1,8,415,'2025-07-19'],
+ [9086,'Atomic Habits','James Clear','Mix','Psychology & Self-help','College',2,2,550,'2025-11-02'],
+ [8687,'Rich Dad Poor Dad','Robert Kiyosaki','Plata','Psychology & Self-help','College',2,2,450,'2023-02-17'],
+ [8709,'Deep Work','Cal Newport','Spere','Psychology & Self-help','College',2,2,0,'2023-03-06'],
+ [440,'How to Win Friends','Dale Carnegie','Pocket','Psychology & Self-help','Secondary',6,6,0,'2011-01-25'],
+ [8688,'Tuesdays with Morrie','Mitch Albom','Spere','Psychology & Self-help','College',2,2,430,'2023-02-17'],
+ [632,'100 Azeem Aadmi','M Asim','Takhliqat','Pakistan Studies & History','Secondary',9,9,0,'2011-02-01'],
+ [542,'100 Explorers','Prescott','Teksons India','General Knowledge','Secondary',9,9,115,'2011-01-27'],
+ [234,'The Jungle Book','Kipling','Brimax','Fiction (English)','Primary',2,2,0,'2011-01-20'],
+ [5655,'The Power of Intention','Dr Wayne Dyer','Hay House','Psychology & Self-help','College',6,6,0,'2013-07-08'],
+ [8972,'Atomic Habits','James Clear','Mix','Psychology & Self-help','College',2,2,0,'2024-09-05']
+].map(r=>({acc:r[0],title:r[1],author:r[2],pub:r[3],cat:r[4],level:r[5],shelf:r[6],rack:r[7],price:r[8],entry:r[9],status:'available'}));
+
+const PEOPLE=[
+ {id:'S-24153',name:'Ayesha Khan',type:'student',cls:'XI-B (Pre-Medical)',phone:'0300-55xxxxx'},
+ {id:'S-23088',name:'Hamza Ali',type:'student',cls:'XII-A (Pre-Engineering)',phone:'0333-41xxxxx'},
+ {id:'S-24210',name:'Muhammad Usman',type:'student',cls:'X-A',phone:'0312-77xxxxx'},
+ {id:'S-25012',name:'Zainab Raza',type:'student',cls:'IX-C',phone:'0345-90xxxxx'},
+ {id:'T-017',name:'Saima Bukhari',type:'staff',cls:'Lecturer English',phone:'0321-63xxxxx'},
+ {id:'T-041',name:'Imran Qureshi',type:'staff',cls:'Lecturer Physics',phone:'0301-22xxxxx'}
+];
+let LOANS=[
+ {acc:9062,who:'S-23088',issued:addD(TODAY,-25),due:addD(TODAY,-11)},
+ {acc:9115,who:'S-23088',issued:addD(TODAY,-12),due:addD(TODAY,2)},
+ {acc:8941,who:'S-24153',issued:addD(TODAY,-17),due:addD(TODAY,-3)},
+ {acc:9086,who:'T-041',issued:addD(TODAY,-10),due:addD(TODAY,20)},
+ {acc:8709,who:'S-25012',issued:addD(TODAY,-14),due:TODAY},
+ {acc:106,who:'S-25012',issued:addD(TODAY,-20),due:addD(TODAY,-6)},
+ {acc:8248,who:'T-041',issued:addD(TODAY,-40),due:addD(TODAY,-10)}
+];
+let HISTORY=[]; // returns, write-offs this session
+let WRITTEN=[];
+LOANS.forEach(l=>{const b=byAcc(l.acc);if(b)b.status='issued'});
+function byAcc(a){return BOOKS.find(b=>b.acc==a)}
+function person(id){return PEOPLE.find(p=>p.id.toLowerCase()==String(id).trim().toLowerCase())}
+function loansOf(id){return LOANS.filter(l=>l.who==id)}
+function overdueDays(l){return Math.max(0,daysBetween(l.due,TODAY))}
+function fineOf(l){const d=overdueDays(l);return d>RULES.grace?d*RULES.fine:0}
+const initials=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('');
+
+/* ---------- shell ---------- */
+const PAGES=[
+ ['dash','Dashboard','dash'],['issue','Issue Books','out'],['return','Return Books','back'],
+ ['search','Catalogue','search'],['add','Add New Books','plus'],['write','Write-off','trash'],
+ ['reports','Reports','chart'],['settings','Categories & Rules','cog']
+];
+let cur='dash';
+function shell(){
+ const od=LOANS.filter(l=>overdueDays(l)>0).length;
+ document.getElementById('sidenav').innerHTML=PAGES.map(p=>`<a data-go="${p[0]}" class="${p[0]==cur?'on':''}">${ic(p[2])}${p[1]}</a>`).join('');
+ const t=document.getElementById('tabs');
+ t.innerHTML='<span class="pill" id="pill"></span>'+PAGES.map(p=>`<button data-go="${p[0]}" class="${p[0]==cur?'on':''}">${p[1]}${p[0]=='return'&&od?`<span class="n">${od}</span>`:''}</button>`).join('');
+ document.getElementById('crumb').textContent=PAGES.find(p=>p[0]==cur)[1];
+ requestAnimationFrame(movePill);
+}
+function movePill(){const t=document.getElementById('tabs'),on=t.querySelector('button.on'),p=document.getElementById('pill');if(!on||!p)return;p.style.width=on.offsetWidth+'px';p.style.transform=`translate(${on.offsetLeft-4}px,${on.offsetTop-4}px)`}
+window.addEventListener('resize',movePill);
+function go(p){cur=p;shell();render();try{localStorage.setItem('fcms-lib-tab',p)}catch(e){}window.scrollTo({top:0})}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();go(g.dataset.go)}});
+
+function toast(msg,kind=''){const t=document.createElement('div');t.className='toast '+kind;t.textContent=msg;document.getElementById('toasts').appendChild(t);setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity=0;setTimeout(()=>t.remove(),300)},2800)}
+function countUp(root=document){root.querySelectorAll('[data-count]').forEach(el=>{const end=+el.dataset.count,pre=el.dataset.pre||'';const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;if(reduce){el.textContent=pre+end.toLocaleString('en-PK');return}const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/800),v=Math.round(end*(1-Math.pow(1-k,3)));el.textContent=pre+v.toLocaleString('en-PK');if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
+const stag=(i)=>`style="animation-delay:${Math.min(i,12)*35}ms"`;
+const statusPill=b=>b.status=='available'?'<span class="st ok">Available</span>':b.status=='issued'?'<span class="st warn">Issued</span>':'<span class="st mute">Written off</span>';
+
+/* ---------- views ---------- */
+const V={};
+
+V.dash=()=>{
+ const issued=LOANS.length,over=LOANS.filter(l=>overdueDays(l)>0),fines=LOANS.reduce((s,l)=>s+fineOf(l),0);
+ const series=[6,9,4,11,8,0,3,12,7,10,5,14,9,LOANS.filter(l=>iso(l.issued)==iso(TODAY)).length+6];
+ const max=Math.max(...series);
+ const catCount={};BOOKS.forEach(b=>catCount[b.cat]=(catCount[b.cat]||0)+1);
+ const cats=Object.entries(catCount).sort((a,b)=>b[1]-a[1]).slice(0,6);const cmax=cats[0][1];
+ const due=[...LOANS].sort((a,b)=>a.due-b.due).slice(0,6);
+ return `<div class="view">
+ <div class="head"><div><h1>Library overview</h1><p>Fazaia Inter College Minhas · ${fmt(TODAY)}</p></div>
+ <div class="acts"><button class="btn" data-go="issue">${ic('out')}Issue a book</button><button class="btn ghost" data-go="return">${ic('back')}Return</button></div></div>
+ <div class="kpis">
+  <div class="kpi"><span class="l">Copies in stock</span><span class="v" data-count="${BOOKS.filter(b=>b.status!='written-off').length}">0</span><small>${new Set(BOOKS.map(b=>b.title)).size} different titles</small></div>
+  <div class="kpi"><span class="l">Available now</span><span class="v" data-count="${BOOKS.filter(b=>b.status=='available').length}">0</span><small>on the shelves</small></div>
+  <div class="kpi"><span class="l">Issued</span><span class="v" data-count="${issued}">0</span><small>${PEOPLE.filter(p=>loansOf(p.id).length).length} borrowers</small></div>
+  <div class="kpi ${over.length?'alert':''}"><span class="l">Overdue</span><span class="v" data-count="${over.length}">0</span><small>past the due date</small></div>
+  <div class="kpi ${fines?'alert':''}"><span class="l">Fines due</span><span class="v" data-count="${fines}" data-pre="Rs ">0</span><small>${rs(RULES.fine)}/day after ${RULES.grace} grace days</small></div>
+ </div>
+ <div class="grid g2">
+  <div class="card"><h2>Books issued · last 14 days</h2>
+   <div class="bars">${series.map((v,i)=>`<div class="b ${i==13?'today':''}"><em>${v}</em><i style="height:${v/max*100}%;animation-delay:${i*40}ms"></i></div>`).join('')}</div>
+   <div class="axis">${series.map((v,i)=>`<span>${i==13?'Today':addD(TODAY,i-13).getDate()}</span>`).join('')}</div>
+  </div>
+  <div class="card"><h2>Due back soon and overdue <button class="btn ghost" data-go="reports">Overdue report</button></h2>
+   <div class="list">${due.map((l,i)=>{const b=byAcc(l.acc),p=person(l.who),d=daysBetween(TODAY,l.due);return `<div class="li" ${stag(i)}><div class="av" style="width:30px;height:30px;font-size:11px">${initials(p.name)}</div><div class="t"><b>${p.name}</b> · ${p.cls}<br>${b.title} <span class="mono">#${b.acc}</span></div>${d<0?`<span class="st bad">${-d} days late</span>`:d==0?'<span class="st warn">Due today</span>':`<span class="st ok">in ${d} days</span>`}</div>`}).join('')}</div>
+  </div>
+  <div class="card"><h2>Stock by category</h2>${cats.map((c,i)=>`<div class="hbar"><span>${c[0]}</span><div class="tr"><i style="width:${c[1]/cmax*100}%;animation-delay:${i*60}ms"></i></div><b class="num" style="text-align:right">${c[1]}</b></div>`).join('')}</div>
+  <div class="card"><h2>Data health <button class="btn ghost" data-go="settings">Clean up categories</button></h2>
+   <div class="stack" style="gap:8px">
+    <div class="notice bad">${ic('warn')}<div>451 book categories found, many of them duplicates (e.g. 9 spellings of "Dictionary"). Mapping them to a clean category list is step 1.</div></div>
+    <div class="notice warn">${ic('warn')}<div>Your stock report shows negative copy counts (Book 311: −14, Book 9064: −7). Copies should never go below 0.</div></div>
+    <div class="notice warn">${ic('warn')}<div>Book 9090 has an entry date in the future (05-Dec-2026). Entry dates should be blocked after today.</div></div>
+   </div></div>
+ </div></div>`};
+V.dash.after=()=>{countUp()};
+
+/* ---- Issue ---- */
+let IS={type:'student',who:null,book:null,cart:[],err:{},done:null};
+V.issue=()=>{
+ if(IS.done)return `<div class="view"><div class="card done"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28"/><path d="M20 33l8 8 16-17"/></svg><h2>${IS.done.n} book${IS.done.n>1?'s':''} issued to ${IS.done.name}</h2><p>Due back on <b>${fmt(IS.done.due)}</b>. A slip can be printed from the Issue report.</p><div class="row" style="justify-content:center;flex:0"><button class="btn" id="again">Issue to someone else</button><button class="btn ghost" data-go="dash">Back to overview</button></div></div></div>`;
+ const p=IS.who,lim=p?RULES[p.type].max:0,used=p?loansOf(p.id).length:0,od=p?loansOf(p.id).filter(l=>overdueDays(l)>0):[];
+ const left=lim-used-IS.cart.length,blocked=p&&(od.length>0||left<0);
+ const dueDate=p?addD(TODAY,RULES[p.type].days):null;
+ return `<div class="view">
+ <div class="head"><div><h1>Issue books</h1><p>Find the borrower, scan each book, then issue them together.</p></div></div>
+ <div class="grid g-issue">
+  <div class="stack">
+   <div class="card"><h2>1 · Borrower</h2>
+    <div class="row">
+     <div style="flex:0 0 auto"><div class="seg" id="ptype"><button data-t="student" class="${IS.type=='student'?'on':''}">Student</button><button data-t="staff" class="${IS.type=='staff'?'on':''}">Staff</button></div></div>
+     <label class="f ${IS.err.who?'err':''}">${IS.type=='student'?'Student ID':'Staff ID'}<div class="scan ${p?'':'live'}">${ic('scan')}<input type="text" id="whoId" placeholder="Scan card or type ID, then Enter" value="${p?p.id:''}"></div></label>
+     <div style="flex:0 0 auto"><button class="btn" id="findWho">${ic('search')}Find</button></div>
+    </div>
+    ${IS.err.who?`<p class="msg">${IS.err.who}</p>`:''}
+    <p class="try">Try: ${PEOPLE.filter(x=>x.type==IS.type).map(x=>`<button data-who="${x.id}">${x.id}</button>`).join(' ')}</p>
+    ${p?`<div class="who"><div class="av">${initials(p.name)}</div><div class="meta"><b>${p.name}</b>${p.id} · ${p.cls}
+      <div class="limit" title="Loan limit">${Array.from({length:lim},(_,i)=>`<i class="${i<used?(od.length?'o':'u'):i<used+IS.cart.length?'u':''}"></i>`).join('')}</div>
+      <span>${used} of ${lim} books already issued</span></div><button class="btn ghost" id="clearWho">Change</button></div>
+     ${od.length?`<div class="notice bad" style="margin-top:10px">${ic('warn')}<div>${od.length} overdue book${od.length>1?'s':''} · fine ${rs(od.reduce((s,l)=>s+fineOf(l),0))}. Return ${od.length>1?'them':'it'} before issuing new books.</div></div>`:''}
+     ${loansOf(p.id).length?`<div class="tw" style="margin-top:10px"><table><thead><tr><th>Book with borrower</th><th>Due</th><th></th></tr></thead><tbody>${loansOf(p.id).map((l,i)=>`<tr ${stag(i)}><td>${byAcc(l.acc).title} <span class="mono">#${l.acc}</span></td><td>${fmt(l.due)}</td><td>${overdueDays(l)?`<span class="st bad">${overdueDays(l)}d late</span>`:'<span class="st ok">On time</span>'}</td></tr>`).join('')}</tbody></table></div>`:''}`:''}
+   </div>
+   <div class="card" style="${p&&!blocked?'':'opacity:.55;pointer-events:none'}"><h2>2 · Book</h2>
+    <div class="row">
+     <label class="f ${IS.err.book?'err':''}">Accession no.<div class="scan ${p&&!IS.book?'live':''}">${ic('scan')}<input type="text" id="accNo" placeholder="Scan the book barcode" inputmode="numeric"></div></label>
+     <div style="flex:0 0 auto"><button class="btn" id="findBook">${ic('search')}Look up</button></div>
+    </div>
+    ${IS.err.book?`<p class="msg">${IS.err.book}</p>`:''}
+    <p class="try">Try: <button data-acc="390">390</button><button data-acc="6568">6568</button><button data-acc="8943">8943</button><button data-acc="9062">9062</button> (already issued)</p>
+    ${IS.book?`<div class="book"><div class="spine">#${IS.book.acc}</div><div><b>${IS.book.title}</b><div class="kv"><span>Author <b>${IS.book.author}</b></span><span>Category <b>${IS.book.cat}</b></span><span>Shelf <b>${IS.book.shelf}</b> · Rack <b>${IS.book.rack}</b></span></div></div>${statusPill(IS.book)}</div>
+     <div class="row" style="margin-top:10px"><label class="f">Return by<span class="h">${RULES[p.type].days}-day loan for ${p.type}s</span><input type="date" id="due" value="${iso(dueDate)}" min="${iso(addD(TODAY,1))}"></label><div style="flex:0 0 auto"><button class="btn" id="addCart" ${IS.book.status!='available'||left<=0?'disabled':''}>${ic('plus')}Add to list</button></div></div>
+     ${left<=0&&IS.book.status=='available'?`<p class="msg">Loan limit reached (${lim} books).</p>`:''}`:''}
+   </div>
+  </div>
+  <div class="card" style="align-self:start"><h2>Books to issue <span class="st ${IS.cart.length?'ok':'mute'}">${IS.cart.length}</span></h2>
+   ${IS.cart.length?`<div class="cart">${IS.cart.map((c,i)=>`<div class="it"><div class="spine" style="width:28px;height:38px;font-size:8px">${c.acc}</div><div class="t"><b>${byAcc(c.acc).title}</b><br>Due ${fmt(c.due)}</div><button class="x" data-rm="${i}" aria-label="Remove">✕</button></div>`).join('')}</div>`
+   :`<div class="empty"><b>No books added yet</b>Find a borrower, then scan each book. They collect here so you can issue them in one go.</div>`}
+   <div class="sum" style="margin-top:12px"><span>${p?`Issuing to <b>${p.name}</b>`:'No borrower selected'}</span><button class="btn" id="doIssue" ${IS.cart.length&&!blocked?'':'disabled'}>Issue ${IS.cart.length||''} book${IS.cart.length==1?'':'s'}</button></div>
+  </div>
+ </div></div>`};
+V.issue.after=()=>{
+ const $=id=>document.getElementById(id);
+ if(IS.done){$('again').onclick=()=>{IS={type:'student',who:null,book:null,cart:[],err:{},done:null};render()};return}
+ document.querySelectorAll('#ptype button').forEach(b=>b.onclick=()=>{IS.type=b.dataset.t;IS.who=null;IS.book=null;IS.cart=[];IS.err={};render()});
+ const findWho=id=>{const p=person(id);if(!p||p.type!=IS.type){IS.err.who=p?`${id} is a ${p.type} ID. Switch the type above.`:`No ${IS.type} found with ID "${id}". Check the card and try again.`;IS.who=null}else{IS.err={};IS.who=p}render();if(IS.who&&!loansOf(IS.who.id).some(l=>overdueDays(l))&&$('accNo'))$('accNo').focus()};
+ $('findWho').onclick=()=>findWho($('whoId').value);
+ $('whoId').onkeydown=e=>{if(e.key=='Enter')findWho(e.target.value)};
+ document.querySelectorAll('[data-who]').forEach(b=>b.onclick=()=>findWho(b.dataset.who));
+ if($('clearWho'))$('clearWho').onclick=()=>{IS.who=null;IS.book=null;IS.cart=[];render()};
+ const findBook=a=>{const b=byAcc(a);IS.err.book=null;if(!b){IS.err.book=`No book with accession no. ${a}.`;IS.book=null}else if(IS.cart.some(c=>c.acc==b.acc)){IS.err.book='This book is already in the list.';IS.book=null}else{IS.book=b;if(b.status=='issued'){const l=LOANS.find(l=>l.acc==b.acc);IS.err.book=`Already issued to ${person(l.who).name}, due ${fmt(l.due)}.`}}render()};
+ if($('findBook')){$('findBook').onclick=()=>findBook($('accNo').value);$('accNo').onkeydown=e=>{if(e.key=='Enter')findBook(e.target.value)}}
+ document.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>findBook(b.dataset.acc));
+ if($('addCart'))$('addCart').onclick=()=>{IS.cart.push({acc:IS.book.acc,due:new Date($('due').value)});IS.book=null;render();$('accNo')&&$('accNo').focus()};
+ document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{IS.cart.splice(+b.dataset.rm,1);render()});
+ $('doIssue').onclick=()=>{IS.cart.forEach(c=>{LOANS.push({acc:c.acc,who:IS.who.id,issued:TODAY,due:c.due});byAcc(c.acc).status='issued'});IS.done={n:IS.cart.length,name:IS.who.name,due:IS.cart[0].due};toast(`${IS.cart.length} book(s) issued`,'ok');shell();render()};
+};
+
+/* ---- Return ---- */
+let RT={q:'',who:null,sel:{},cond:{},paid:true,done:null};
+V.return=()=>{
+ if(RT.done)return `<div class="view"><div class="card done"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28"/><path d="M20 33l8 8 16-17"/></svg><h2>${RT.done.n} book${RT.done.n>1?'s':''} received from ${RT.done.name}</h2><p>${RT.done.fine?`Fine ${rs(RT.done.fine)} ${RT.done.paid?'collected':'added to the borrower\'s dues'}.`:'No fine.'} ${RT.done.lost?`${RT.done.lost} marked lost and moved to the Lost report.`:''}</p><div class="row" style="justify-content:center;flex:0"><button class="btn" id="again">Receive more books</button></div></div></div>`;
+ const p=RT.who,ls=p?loansOf(p.id):[];
+ const rows=ls.map(l=>{const c=RT.cond[l.acc]||'good',b=byAcc(l.acc);const extra=c=='lost'?Math.round(b.price*RULES.lost/100):c=='damaged'?Math.round(b.price*RULES.damaged/100):0;return {l,b,c,fine:fineOf(l),extra}});
+ const chosen=rows.filter(r=>RT.sel[r.l.acc]);const total=chosen.reduce((s,r)=>s+r.fine+r.extra,0);
+ return `<div class="view">
+ <div class="head"><div><h1>Return books</h1><p>Scan a borrower card or any book they are returning. Fines are worked out for you.</p></div></div>
+ <div class="card"><div class="row">
+  <label class="f">Borrower ID or accession no.<div class="scan ${p?'':'live'}">${ic('scan')}<input type="text" id="rq" placeholder="e.g. S-23088 or 9062" value="${RT.q}"></div></label>
+  <div style="flex:0 0 auto"><button class="btn" id="rfind">${ic('search')}Find loans</button></div></div>
+  ${RT.err?`<p class="msg">${RT.err}</p>`:''}
+  <p class="try">Try: <button data-r="S-23088">S-23088</button><button data-r="S-25012">S-25012</button><button data-r="8248">8248</button></p>
+ </div>
+ ${p?`<div class="card" style="margin-top:14px">
+  <div class="who" style="margin-bottom:12px"><div class="av">${initials(p.name)}</div><div class="meta"><b>${p.name}</b>${p.id} · ${p.cls} · ${p.phone}</div><span class="st ${ls.some(l=>overdueDays(l))?'bad':'ok'}">${ls.length} on loan</span></div>
+  ${ls.length?`<div class="tw"><table><thead><tr><th><input type="checkbox" id="all" ${chosen.length==rows.length?'checked':''} aria-label="Select all"></th><th>Book</th><th>Issued</th><th>Due</th><th>Late</th><th>Condition</th><th class="num">Fine</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr ${stag(i)}><td><input type="checkbox" data-sel="${r.l.acc}" ${RT.sel[r.l.acc]?'checked':''} aria-label="Select"></td><td><b>${r.b.title}</b><br><span class="mono">#${r.b.acc}</span> · Price ${rs(r.b.price)}</td><td>${fmt(r.l.issued)}</td><td>${fmt(r.l.due)}</td><td>${overdueDays(r.l)?`<span class="st bad">${overdueDays(r.l)} days</span>`:'<span class="st ok">On time</span>'}</td>
+   <td><select data-cond="${r.l.acc}" aria-label="Condition"><option value="good" ${r.c=='good'?'selected':''}>Good</option><option value="damaged" ${r.c=='damaged'?'selected':''}>Damaged (${RULES.damaged}%)</option><option value="lost" ${r.c=='lost'?'selected':''}>Lost (${RULES.lost}%)</option></select></td>
+   <td class="num"><b>${rs(r.fine+r.extra)}</b>${r.extra?`<br><span style="font-size:11px">late ${rs(r.fine)} + ${r.c} ${rs(r.extra)}</span>`:''}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="sum" style="margin-top:12px"><label style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" id="paid" ${RT.paid?'checked':''}> Fine paid at the counter</label>
+   <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><span>Total fine <span class="big" id="tot">${rs(total)}</span></span><button class="btn" id="doRet" ${chosen.length?'':'disabled'}>Receive ${chosen.length||''} book${chosen.length==1?'':'s'}</button></div></div>
+  <p style="margin:8px 0 0;color:var(--ink-2)">Fine rule: ${rs(RULES.fine)} per day after ${RULES.grace} grace days. Damaged = ${RULES.damaged}% of price, Lost = ${RULES.lost}% of price. Change these in Categories &amp; Rules.</p>`
+  :`<div class="empty"><b>Nothing on loan</b>${p.name} has returned everything.</div>`}
+ </div>`:''}
+ </div>`};
+V.return.after=()=>{
+ const $=id=>document.getElementById(id);
+ if(RT.done){$('again').onclick=()=>{RT={q:'',who:null,sel:{},cond:{},paid:true,done:null};render()};return}
+ const find=q=>{RT.q=q;RT.err=null;let p=person(q);if(!p){const l=LOANS.find(l=>String(l.acc)==String(q).trim());if(l)p=person(l.who)}if(!p){RT.err=`Nothing on loan for "${q}". Check the ID or accession number.`;RT.who=null}else{RT.who=p;RT.sel={};loansOf(p.id).forEach(l=>{if(!byAcc(q)||l.acc==q)RT.sel[l.acc]=true})}render()};
+ $('rfind').onclick=()=>find($('rq').value);$('rq').onkeydown=e=>{if(e.key=='Enter')find(e.target.value)};
+ document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>find(b.dataset.r));
+ document.querySelectorAll('[data-sel]').forEach(c=>c.onchange=()=>{RT.sel[c.dataset.sel]=c.checked;render()});
+ document.querySelectorAll('[data-cond]').forEach(s=>s.onchange=()=>{RT.cond[s.dataset.cond]=s.value;render()});
+ if($('all'))$('all').onchange=e=>{loansOf(RT.who.id).forEach(l=>RT.sel[l.acc]=e.target.checked);render()};
+ if($('paid'))$('paid').onchange=e=>RT.paid=e.target.checked;
+ if($('doRet'))$('doRet').onclick=()=>{let fine=0,n=0,lost=0;loansOf(RT.who.id).filter(l=>RT.sel[l.acc]).forEach(l=>{const b=byAcc(l.acc),c=RT.cond[l.acc]||'good';fine+=fineOf(l)+(c=='lost'?Math.round(b.price*RULES.lost/100):c=='damaged'?Math.round(b.price*RULES.damaged/100):0);n++;if(c=='lost'){lost++;b.status='written-off';WRITTEN.push({acc:b.acc,reason:'Lost by borrower',date:TODAY})}else b.status='available';HISTORY.push({...l,ret:TODAY,cond:c});LOANS=LOANS.filter(x=>x!==l)});RT.done={n,name:RT.who.name,fine,paid:RT.paid,lost};toast(`${n} book(s) received`,'ok');shell();render()};
+};
+
+/* ---- Catalogue ---- */
+let CQ={q:'',cat:'',avail:'',level:'',open:null};
+V.search=()=>{
+ const q=CQ.q.trim().toLowerCase();
+ const res=BOOKS.filter(b=>(!q||[b.title,b.author,b.pub,String(b.acc)].some(x=>x.toLowerCase().includes(q)))&&(!CQ.cat||b.cat==CQ.cat)&&(!CQ.avail||b.status==CQ.avail)&&(!CQ.level||b.level==CQ.level));
+ return `<div class="view">
+ <div class="head"><div><h1>Catalogue</h1><p>Search by title, author, publisher or accession no. Results update as you type.</p></div>
+  <div class="acts"><button class="btn ghost" data-exp="Excel">${ic('dl')}Excel</button><button class="btn ghost" data-exp="PDF">${ic('dl')}PDF</button></div></div>
+ <div class="card stack" style="gap:10px">
+  <div class="row"><label class="f" style="flex:3 1 260px">Search<div class="scan">${ic('search')}<input type="search" id="cq" placeholder="Try “physics”, “Oxford” or “9115”" value="${CQ.q}"></div></label>
+   <label class="f">Category<select id="ccat"><option value="">All categories</option>${CATS.map(c=>c.name).map(c=>`<option ${CQ.cat==c?'selected':''}>${c}</option>`).join('')}</select></label></div>
+  <div class="row" style="align-items:center"><div class="chips" style="flex:1 1 auto">${[['','All'],['available','Available'],['issued','Issued'],['written-off','Written off']].map(a=>`<button class="chip ${CQ.avail==a[0]?'on':''}" data-av="${a[0]}">${a[1]}</button>`).join('')}</div>
+   <div class="chips" style="flex:0 1 auto">${['Primary','Secondary','College'].map(l=>`<button class="chip ${CQ.level==l?'on':''}" data-lv="${l}">${l}</button>`).join('')}</div></div>
+ </div>
+ <div class="card" style="margin-top:14px"><h2>${res.length} result${res.length==1?'':'s'}</h2>
+ ${res.length?`<div class="tw"><table><thead><tr><th>Acc. no.</th><th>Title</th><th>Author</th><th>Category</th><th>Shelf / Rack</th><th>Status</th></tr></thead><tbody>
+  ${res.map((b,i)=>`<tr class="click" data-open="${b.acc}" ${stag(i)}><td class="mono">${b.acc}</td><td><b>${b.title}</b><br>${b.pub}</td><td>${b.author}</td><td>${b.cat}</td><td>${b.shelf} / ${b.rack}</td><td>${statusPill(b)}</td></tr>`).join('')}
+ </tbody></table></div>`:`<div class="empty"><b>No books match</b>Try fewer words, or clear the category and status filters.</div>`}
+ </div></div>`};
+V.search.after=()=>{
+ const q=document.getElementById('cq');q.oninput=e=>{CQ.q=e.target.value;const pos=e.target.selectionStart;render();const n=document.getElementById('cq');n.focus();n.setSelectionRange(pos,pos)};
+ document.getElementById('ccat').onchange=e=>{CQ.cat=e.target.value;render()};
+ document.querySelectorAll('[data-av]').forEach(b=>b.onclick=()=>{CQ.avail=b.dataset.av;render()});
+ document.querySelectorAll('[data-lv]').forEach(b=>b.onclick=()=>{CQ.level=CQ.level==b.dataset.lv?'':b.dataset.lv;render()});
+ document.querySelectorAll('[data-open]').forEach(r=>r.onclick=()=>openBook(+r.dataset.open));
+ document.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>toast(`${b.dataset.exp} export runs on the server in FCMS`));
+};
+function openBook(acc){
+ const b=byAcc(acc),l=LOANS.find(x=>x.acc==acc),same=BOOKS.filter(x=>x.title==b.title);
+ document.getElementById('layer').innerHTML=`<div class="scrim" id="scrim"></div><aside class="drawer" role="dialog" aria-label="Book details">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div class="spine" style="height:72px">#${b.acc}</div><div style="flex:1"><h2>${b.title}</h2>${b.author} · ${b.pub}</div><button class="x" id="close" aria-label="Close" style="color:var(--ink);font-size:16px">✕</button></div>
+  ${statusPill(b)}
+  ${l?`<div class="notice warn">${ic('info')}<div>With ${person(l.who).name} (${person(l.who).cls}) · due ${fmt(l.due)}</div></div>`:''}
+  <div class="tw"><table><tbody>${[['Category',b.cat],['Level',b.level],['Shelf / Rack',b.shelf+' / '+b.rack],['Price',rs(b.price)],['Entry date',fmt(b.entry)],['Copies of this title',same.length+' ('+same.filter(x=>x.status=='available').length+' available)']].map(r=>`<tr><th style="width:44%">${r[0]}</th><td>${r[1]}</td></tr>`).join('')}</tbody></table></div>
+  <h2>History</h2><div class="tl"><div><b>Added to library</b><br>${fmt(b.entry)}</div>${l?`<div><b>Issued to ${person(l.who).name}</b><br>${fmt(l.issued)}</div>`:''}</div>
+  <div class="row"><button class="btn" data-go="issue" ${b.status!='available'?'disabled':''}>Issue this book</button><button class="btn ghost" id="lbl">Print label</button></div>
+ </aside>`;
+ const close=()=>document.getElementById('layer').innerHTML='';
+ document.getElementById('scrim').onclick=close;document.getElementById('close').onclick=close;
+ document.getElementById('lbl').onclick=()=>toast('Spine label sent to the label printer');
+ document.querySelector('.drawer [data-go]').addEventListener('click',()=>{close();IS.book=null});
+ document.addEventListener('keydown',function esc(e){if(e.key=='Escape'){close();document.removeEventListener('keydown',esc)}});
+}
+
+/* ---- Add ---- */
+let AD={src:'purchase',f:{title:'',author:'',pub:'',isbn:'',edition:'',lang:'English',cat:'',level:'',copies:'3',shelf:'',rack:'',price:'',date:iso(TODAY),vendor:'',inv:''},err:{}};
+V.add=()=>{
+ const f=AD.f,n=Math.max(0,Math.min(50,parseInt(f.copies)||0)),next=Math.max(...BOOKS.map(b=>b.acc))+1;
+ const dup=f.title.trim().length>3?BOOKS.filter(b=>b.title.toLowerCase()==f.title.trim().toLowerCase()):[];
+ const fld=(k,label,ph,type='text',hint='')=>`<label class="f ${AD.err[k]?'err':''}">${label}${hint?`<span class="h">${hint}</span>`:''}<input type="${type}" data-f="${k}" id="f-${k}" placeholder="${ph}" value="${f[k]}" ${type=='date'?`max="${iso(TODAY)}"`:''} ${type=='number'?'min="0"':''}>${AD.err[k]?`<span class="msg">${AD.err[k]}</span>`:''}</label>`;
+ return `<div class="view">
+ <div class="head"><div><h1>Add new books</h1><p>Each copy gets its own accession number and barcode label automatically.</p></div></div>
+ <div class="grid g-issue">
+  <div class="stack">
+   <div class="card"><h2>Book details</h2><div class="stack" style="gap:10px">
+    <div class="row">${fld('title','Title *','e.g. Physics Grade 12')}</div>
+    ${dup.length?`<div class="notice warn">${ic('info')}<div>${dup.length} cop${dup.length>1?'ies':'y'} of “${dup[0].title}” already in the library (${dup.map(d=>'#'+d.acc).slice(0,4).join(', ')}). New copies will be linked to the same title.</div></div>`:''}
+    <div class="row">${fld('author','Author *','e.g. National Book Foundation')}${fld('pub','Publisher','e.g. Oxford')}</div>
+    <div class="row">${fld('isbn','ISBN','978-…')}${fld('edition','Edition','e.g. 3rd')}<label class="f">Language<select data-f="lang" id="f-lang">${['English','Urdu','Arabic','Other'].map(x=>`<option ${f.lang==x?'selected':''}>${x}</option>`).join('')}</select></label></div>
+   </div></div>
+   <div class="card"><h2>Classification and location</h2><div class="stack" style="gap:10px">
+    <div class="row"><label class="f ${AD.err.cat?'err':''}">Category *<select data-f="cat" id="f-cat"><option value="">Choose a category</option>${catNames().map(c=>`<option ${f.cat==c?'selected':''}>${c}</option>`).join('')}</select>${AD.err.cat?`<span class="msg">${AD.err.cat}</span>`:''}</label>
+     <label class="f ${AD.err.level?'err':''}">Section *<select data-f="level" id="f-level"><option value="">Choose</option>${['Primary','Secondary','College','For all'].map(c=>`<option ${f.level==c?'selected':''}>${c}</option>`).join('')}</select>${AD.err.level?`<span class="msg">${AD.err.level}</span>`:''}</label></div>
+    <div class="row">${fld('copies','Copies *','1','number','1 to 50')}${fld('shelf','Shelf no.','e.g. 3')}${fld('rack','Rack no.','e.g. 7')}</div>
+   </div></div>
+   <div class="card"><h2>Acquisition</h2><div class="stack" style="gap:10px">
+    <div class="seg" id="src" style="align-self:flex-start"><button data-s="purchase" class="${AD.src=='purchase'?'on':''}">Purchase</button><button data-s="donation" class="${AD.src=='donation'?'on':''}">Donation</button></div>
+    <div class="row">${fld('vendor',AD.src=='purchase'?'Vendor':'Donor name',AD.src=='purchase'?'e.g. MS Books':'e.g. Old Students Association')}${AD.src=='purchase'?fld('inv','Invoice no.','e.g. INV-2291'):''}</div>
+    <div class="row">${AD.src=='purchase'?fld('price','Price per copy (Rs) *','e.g. 590','number'):''}${fld('date','Received on *','','date','Cannot be after today')}</div>
+   </div></div>
+  </div>
+  <div class="card" style="align-self:start;position:sticky;top:12px"><h2>Labels to print <span class="st ${n?'ok':'mute'}">${n} cop${n==1?'y':'ies'}</span></h2>
+   ${n?`<div class="labels">${Array.from({length:Math.min(n,12)},(_,i)=>`<div class="lbl" style="animation-delay:${i*40}ms"><div class="bc"></div><div><span>#${next+i}</span><span>${f.shelf||'–'}/${f.rack||'–'}</span></div></div>`).join('')}</div>${n>12?`<p>+ ${n-12} more</p>`:''}
+   <p style="color:var(--ink-2)">Accession numbers <b class="mono">${next}</b> to <b class="mono">${next+n-1}</b> will be assigned.</p>`:`<div class="empty"><b>Enter the number of copies</b>A label preview appears here.</div>`}
+   <div class="sum"><span>${f.title?`<b>${f.title}</b>`:'Untitled'}</span><button class="btn" id="save">Save ${n||''} cop${n==1?'y':'ies'}</button></div>
+  </div>
+ </div></div>`};
+V.add.after=()=>{
+ document.querySelectorAll('[data-f]').forEach(el=>{
+  const ev=el.tagName=='SELECT'?'change':'input';
+  el.addEventListener(ev,e=>{AD.f[el.dataset.f]=e.target.value;delete AD.err[el.dataset.f];if(['copies','title','shelf','rack'].includes(el.dataset.f)||el.tagName=='SELECT'){const id=el.id,pos=el.selectionStart;render();const n=document.getElementById(id);if(n&&n.tagName!='SELECT'){n.focus();try{n.setSelectionRange(pos,pos)}catch(x){}}}});
+ });
+ document.querySelectorAll('#src button').forEach(b=>b.onclick=()=>{AD.src=b.dataset.s;render()});
+ document.getElementById('save').onclick=()=>{
+  const f=AD.f,e={};
+  if(!f.title.trim())e.title='Enter the book title.';
+  if(!f.author.trim())e.author='Enter the author.';
+  if(!f.cat)e.cat='Choose a category.';
+  if(!f.level)e.level='Choose a section.';
+  const c=parseInt(f.copies);if(!(c>=1&&c<=50))e.copies='Copies must be between 1 and 50.';
+  if(AD.src=='purchase'&&!(+f.price>0))e.price='Enter a price above 0 for purchased books.';
+  if(!f.date)e.date='Enter the date received.';else if(new Date(f.date)>TODAY)e.date='Date cannot be in the future.';
+  AD.err=e;if(Object.keys(e).length){render();toast('Please fix the highlighted fields','bad');return}
+  const next=Math.max(...BOOKS.map(b=>b.acc))+1;
+  for(let i=0;i<c;i++)BOOKS.push({acc:next+i,title:f.title.trim(),author:f.author.trim(),pub:f.pub||'—',cat:f.cat,level:f.level=='For all'?'Secondary':f.level,shelf:f.shelf||'–',rack:f.rack||'–',price:+f.price||0,entry:f.date,status:'available'});
+  toast(`${c} cop${c>1?'ies':'y'} saved · #${next}–#${next+c-1}`,'ok');
+  AD.f={...AD.f,title:'',author:'',isbn:'',edition:'',copies:'1',inv:'',price:''};render();
+ };
+};
+
+/* ---- Write-off ---- */
+let WO={list:[],err:'',confirm:false,ref:'',by:''};
+V.write=()=>`<div class="view">
+ <div class="head"><div><h1>Write off books</h1><p>Remove lost, damaged or outdated copies from stock. Written-off books stay in the records for audit.</p></div></div>
+ <div class="grid g2">
+  <div class="card stack" style="gap:10px"><h2>Add a copy</h2>
+   <div class="row"><label class="f">Accession no.<div class="scan">${ic('scan')}<input type="text" id="wacc" placeholder="Scan or type"></div></label><div style="flex:0 0 auto"><button class="btn" id="wadd">${ic('plus')}Add</button></div></div>
+   ${WO.err?`<p class="msg">${WO.err}</p>`:''}
+   <p class="try">Try: <button data-w="3">3</button><button data-w="440">440</button><button data-w="9062">9062</button> (issued, will be blocked)</p>
+   <div class="row"><label class="f">Reference / board no.<input type="text" id="wref" placeholder="e.g. WOB/2026/14" value="${WO.ref}"></label><label class="f">Approved by<input type="text" id="wby" placeholder="e.g. Principal" value="${WO.by}"></label></div>
+  </div>
+  <div class="card"><h2>Copies to write off <span class="st ${WO.list.length?'bad':'mute'}">${WO.list.length}</span></h2>
+   ${WO.list.length?`<div class="tw"><table><thead><tr><th>Book</th><th>Reason</th><th class="num">Value</th><th></th></tr></thead><tbody>${WO.list.map((w,i)=>{const b=byAcc(w.acc);return `<tr ${stag(i)}><td><b>${b.title}</b><br><span class="mono">#${b.acc}</span></td><td><select data-why="${i}" aria-label="Reason">${['Damaged beyond repair','Lost','Outdated / old syllabus','Missing at stock check'].map(r=>`<option ${w.reason==r?'selected':''}>${r}</option>`).join('')}</select></td><td class="num">${rs(b.price)}</td><td><button class="x" data-wrm="${i}" aria-label="Remove">✕</button></td></tr>`}).join('')}</tbody></table></div>`
+   :`<div class="empty"><b>No copies added</b>Scan each copy you want to remove from stock.</div>`}
+   ${WO.confirm?`<div class="inline-confirm" style="margin-top:12px"><b>Write off ${WO.list.length} cop${WO.list.length>1?'ies':'y'} worth ${rs(WO.list.reduce((s,w)=>s+byAcc(w.acc).price,0))}?</b>They will no longer appear as available stock. This cannot be undone.<div class="row" style="flex:0"><button class="btn danger" id="wyes">Yes, write off</button><button class="btn ghost" id="wno">Cancel</button></div></div>`
+   :`<div class="sum" style="margin-top:12px"><span>${!WO.ref||!WO.by?'Reference no. and approval are required':''}</span><button class="btn danger" id="wgo" ${WO.list.length&&WO.ref&&WO.by?'':'disabled'}>Write off ${WO.list.length||''}</button></div>`}
+  </div>
+ </div>
+ ${WRITTEN.length?`<div class="card" style="margin-top:14px"><h2>Written off this session</h2><div class="tw"><table><thead><tr><th>Acc.</th><th>Title</th><th>Reason</th><th>Date</th></tr></thead><tbody>${WRITTEN.map((w,i)=>`<tr ${stag(i)}><td class="mono">${w.acc}</td><td>${byAcc(w.acc).title}</td><td>${w.reason}</td><td>${fmt(w.date)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+</div>`;
+V.write.after=()=>{
+ const $=id=>document.getElementById(id);
+ const add=a=>{const b=byAcc(a);WO.err='';if(!b)WO.err=`No book with accession no. ${a}.`;else if(b.status=='issued')WO.err=`#${a} is issued to ${person(LOANS.find(l=>l.acc==b.acc).who).name}. Receive it back (or mark it Lost on the Return screen) first.`;else if(b.status=='written-off')WO.err=`#${a} is already written off.`;else if(WO.list.some(w=>w.acc==b.acc))WO.err='Already in the list.';else WO.list.push({acc:b.acc,reason:'Damaged beyond repair'});render();$('wacc')&&$('wacc').focus()};
+ $('wadd').onclick=()=>add($('wacc').value);$('wacc').onkeydown=e=>{if(e.key=='Enter')add(e.target.value)};
+ document.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>add(b.dataset.w));
+ $('wref').oninput=e=>{WO.ref=e.target.value;const g=$('wgo');if(g)g.disabled=!(WO.list.length&&WO.ref&&WO.by)};
+ $('wby').oninput=e=>{WO.by=e.target.value;const g=$('wgo');if(g)g.disabled=!(WO.list.length&&WO.ref&&WO.by)};
+ document.querySelectorAll('[data-why]').forEach(s=>s.onchange=()=>WO.list[+s.dataset.why].reason=s.value);
+ document.querySelectorAll('[data-wrm]').forEach(b=>b.onclick=()=>{WO.list.splice(+b.dataset.wrm,1);render()});
+ if($('wgo'))$('wgo').onclick=()=>{WO.confirm=true;render()};
+ if($('wno'))$('wno').onclick=()=>{WO.confirm=false;render()};
+ if($('wyes'))$('wyes').onclick=()=>{WO.list.forEach(w=>{byAcc(w.acc).status='written-off';WRITTEN.push({...w,date:TODAY})});toast(`${WO.list.length} cop${WO.list.length>1?'ies':'y'} written off · Ref ${WO.ref}`,'ok');WO={list:[],err:'',confirm:false,ref:'',by:''};render()};
+};
+
+/* ---- Reports ---- */
+const REPORTS=[
+ {k:'overdue',t:'Overdue books',d:'Who is late, by how many days, with phone numbers',tag:'bad'},
+ {k:'issued',t:'Issued books',d:'Everything currently out, by class or staff'},
+ {k:'fines',t:'Fine collection',d:'Fines due and collected, by date range'},
+ {k:'stock',t:'Stock by category',d:'Copies, available and issued per category'},
+ {k:'returned',t:'Returned books',d:'Receipts with condition on return'},
+ {k:'lost',t:'Lost & damaged',d:'Copies marked lost or damaged at return'},
+ {k:'written',t:'Written-off books',d:'Write-offs with reference and approval'},
+ {k:'popular',t:'Most issued titles',d:'What students actually borrow'},
+ {k:'health',t:'Data health',d:'Negative copies, future dates, missing prices',tag:'warn'}
+];
+let RP={k:'overdue',from:iso(addD(TODAY,-30)),to:iso(TODAY)};
+function repTable(k){
+ const T=(h,rows)=>rows.length?`<div class="tw"><table><thead><tr>${h.map(x=>`<th class="${x.endsWith('#')?'num':''}">${x.replace('#','')}</th>`).join('')}</tr></thead><tbody>${rows.map((r,i)=>`<tr ${stag(i)}>${r.map((c,j)=>`<td class="${h[j].endsWith('#')?'num':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:`<div class="empty"><b>Nothing to show</b>No records match these filters.</div>`;
+ if(k=='overdue')return T(['Borrower','Class / designation','Phone','Book','Due','Days late#','Fine#'],LOANS.filter(l=>overdueDays(l)).sort((a,b)=>overdueDays(b)-overdueDays(a)).map(l=>{const p=person(l.who),b=byAcc(l.acc);return [`<b>${p.name}</b><br>${p.id}`,p.cls,p.phone,`${b.title} <span class="mono">#${b.acc}</span>`,fmt(l.due),`<span class="st bad">${overdueDays(l)}</span>`,rs(fineOf(l))]}));
+ if(k=='issued')return T(['Acc.','Title','Borrower','Issued','Due'],LOANS.map(l=>[`<span class="mono">${l.acc}</span>`,byAcc(l.acc).title,person(l.who).name,fmt(l.issued),fmt(l.due)]));
+ if(k=='fines')return T(['Borrower','Book','Days late#','Fine due#','Status'],LOANS.filter(l=>fineOf(l)).map(l=>[person(l.who).name,byAcc(l.acc).title,overdueDays(l),rs(fineOf(l)),'<span class="st warn">Unpaid</span>']));
+ if(k=='stock'){const m={};BOOKS.forEach(b=>{m[b.cat]=m[b.cat]||{t:0,a:0,i:0,w:0};m[b.cat].t++;m[b.cat][b.status[0]]++});return T(['Category','Copies#','Available#','Issued#','Written off#'],Object.entries(m).sort((a,b)=>b[1].t-a[1].t).map(([c,v])=>[c,v.t,v.a,v.i,v.w]))}
+ if(k=='returned')return T(['Acc.','Title','Borrower','Returned','Condition'],HISTORY.map(h=>[h.acc,byAcc(h.acc).title,person(h.who).name,fmt(h.ret),h.cond]));
+ if(k=='lost')return T(['Acc.','Title','Borrower','Condition'],HISTORY.filter(h=>h.cond!='good').map(h=>[h.acc,byAcc(h.acc).title,person(h.who).name,h.cond]));
+ if(k=='written')return T(['Acc.','Title','Reason','Date'],WRITTEN.map(w=>[w.acc,byAcc(w.acc).title,w.reason,fmt(w.date)]));
+ if(k=='popular')return T(['Title','Times issued (this year)#'],[['Physics Objective for Class XI',41],['Oxford Primary Dictionary',37],['Atomic Habits',29],['Chemistry Grade 11',24],['Biology Grade 11',22],['Rich Dad Poor Dad',18]].map(r=>[r[0],r[1]]));
+ if(k=='health')return T(['Book','Problem','Found in','Suggested fix'],[
+  ['<span class="mono">#311</span> Biology XI','Copies = −14','Book Stock Report','Recount and set to actual copies; block negative values'],
+  ['<span class="mono">#9064</span> Biology Grade 12','Copies = −7','Book Stock Report','Issue/return should change status, not subtract copies'],
+  ['<span class="mono">#22</span> Hayat Anbiya ka Encyclopedia','Copies = −1','Book Stock Report','Same as above'],
+  ['<span class="mono">#9090</span> The Power of Intention','Entry date 05-Dec-2026 (future)','Book Stock Report','Limit entry date to today'],
+  ['Many titles','Price = 0','Book Stock Report','Require price for purchased books; mark donations'],
+  ['451 categories','Duplicates and misspellings','Book Category list','Map to clean categories (Categories & Rules)']
+ ]);
+}
+V.reports=()=>{const r=REPORTS.find(x=>x.k==RP.k);return `<div class="view">
+ <div class="head"><div><h1>Library reports</h1><p>Pick a report, set the filters, then export.</p></div></div>
+ <div class="rep">${REPORTS.map(x=>`<button class="rc ${x.k==RP.k?'on':''}" data-rp="${x.k}">${x.tag?`<span class="st ${x.tag} tag">${x.tag=='bad'?'Needs action':'Check'}</span>`:''}<b>${x.t}</b><span>${x.d}</span></button>`).join('')}</div>
+ <div class="card" style="margin-top:14px"><h2>${r.t}<span class="acts"><button class="btn ghost" data-exp="Excel">${ic('dl')}Excel</button><button class="btn ghost" data-exp="PDF">${ic('dl')}PDF</button></span></h2>
+  <div class="row" style="margin-bottom:12px"><label class="f">From<input type="date" id="rf" value="${RP.from}" max="${iso(TODAY)}"></label><label class="f">To<input type="date" id="rt" value="${RP.to}" max="${iso(TODAY)}"></label><label class="f">Class / section<select id="rcls"><option>All</option><option>Primary</option><option>Secondary</option><option>College</option><option>Staff</option></select></label><label class="f">Category<select id="rcat"><option>All</option>${CATS.map(c=>`<option>${c.name}</option>`).join('')}</select></label></div>
+  ${repTable(RP.k)}
+ </div></div>`};
+V.reports.after=()=>{
+ document.querySelectorAll('[data-rp]').forEach(b=>b.onclick=()=>{RP.k=b.dataset.rp;render()});
+ document.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>toast(`${b.dataset.exp} export runs on the server in FCMS`));
+ document.getElementById('rf').onchange=e=>RP.from=e.target.value;document.getElementById('rt').onchange=e=>RP.to=e.target.value;
+};
+
+/* ---- Settings ---- */
+const LANGS=['English','Urdu','Arabic','Bilingual'];
+let OLD=[ // old category list from FCMS (sample of the 451), with suggested target
+ ['Dictionarie',14,'Dictionaries (English)'],['DICTIONARIES',22,'Dictionaries (English)'],['DICTIONARY',31,'Dictionaries (English)'],['Dictionary English',18,'Dictionaries (English)'],['Eng Dictionary',9,'Dictionaries (English)'],
+ ['Dictionary Urdu',12,'Dictionaries (Urdu)'],['DICTIONARY PS',7,''],['DICTIONARY REF SECTION',5,''],['Dictionary Encyclopedia',4,''],
+ ['Encyclopadia',6,'Encyclopaedias'],['ENCYCLOPEDIA',19,'Encyclopaedias'],['Encyclopedia English',8,'Encyclopaedias'],['Encyclopedia Urdu',5,'Encyclopaedias'],
+ ['Phychology',3,'Psychology & Self-help'],['psyschology',2,'Psychology & Self-help'],['Psychology',11,'Psychology & Self-help'],['Educational Psyl',4,''],
+ ['Fiction',16,'Fiction (English)'],['FICTION ENGLISH',9,'Fiction (English)'],['Finction English',3,'Fiction (English)'],['Finction Urdu',6,'Fiction (Urdu)'],['URDU NOVEL',14,'Fiction (Urdu)'],
+ ['Math',8,'Mathematics'],['MATHS',12,'Mathematics'],['Algebera',2,'Mathematics'],['Trigongmetry',1,'Mathematics'],
+ ['Phaysic',3,'Physics'],['Text Book Physics',10,'Text Books'],['Geougraphy',4,''],['MEGAZINES',21,''],
+ ['C',3,''],['E',2,''],['Issued Bk HM PS Shabana',6,''],['Audio Cassette',4,''],['CDs',9,'']
+].map(r=>({old:r[0],books:r[1],to:r[2],sugg:!!r[2],applied:false}));
+let ST={tab:'cats',edit:null,del:null,delTo:'',err:'',mapQ:'',mapShow:'all',sel:{},bulk:'',confirm:false,newFor:null,rulesDirty:false};
+const catBooks=n=>BOOKS.filter(b=>b.cat==n).length;
+function settingsTabs(){const unm=OLD.filter(o=>!o.applied).length;return `<div class="seg" id="stabs" style="margin-bottom:14px">${[['cats','Categories'],['map','Old categories clean-up'+(unm?` (${unm})`:'')],['rules','Loan &amp; fine rules']].map(t=>`<button data-st="${t[0]}" class="${ST.tab==t[0]?'on':''}">${t[1]}</button>`).join('')}</div>`}
+
+function catsTab(){
+ const rows=CATS.map((c,i)=>{const n=catBooks(c.name);
+  if(ST.edit===i)return `<tr class="still"><td><input type="text" id="e-code" value="${c.code}" aria-label="Code" style="max-width:90px"></td><td><input type="text" id="e-name" value="${c.name}" aria-label="Name"></td><td><select id="e-lang" aria-label="Language">${LANGS.map(l=>`<option ${c.lang==l?'selected':''}>${l}</option>`).join('')}</select></td><td class="num">${n}</td><td><select id="e-act" aria-label="Status"><option value="1" ${c.active?'selected':''}>Active</option><option value="0" ${!c.active?'selected':''}>Inactive</option></select></td><td><div class="acts"><button class="btn" id="e-save">Save</button><button class="btn ghost" id="e-cancel">Cancel</button></div></td></tr>`;
+  return `<tr ${stag(i)}><td class="mono">${c.code}</td><td><b>${c.name}</b></td><td>${c.lang}</td><td class="num">${n}</td><td>${c.active?'<span class="st ok">Active</span>':'<span class="st mute">Inactive</span>'}</td><td><div class="acts"><button class="btn ghost" data-ed="${i}">Edit</button><button class="btn ghost" data-del="${i}" style="color:var(--bad);border-color:var(--bad)">Delete</button></div></td></tr>`
+  +(ST.del===i?`<tr class="still"><td colspan="6"><div class="inline-confirm">${n?`<b>“${c.name}” has ${n} book${n>1?'s':''}.</b>Move them to another category before deleting.<div class="row" style="flex:0"><label class="f">Move books to<select id="d-to"><option value="">Choose a category</option>${CATS.filter(x=>x.name!=c.name).map(x=>`<option ${ST.delTo==x.name?'selected':''}>${x.name}</option>`).join('')}</select></label></div>`:`<b>Delete “${c.name}”?</b>No books use this category.`}<div class="acts"><button class="btn danger" id="d-yes">${n?'Move books and delete':'Delete'}</button><button class="btn ghost" id="d-no">Cancel</button></div></div></td></tr>`:'');
+ }).join('');
+ return `<div class="grid g-issue">
+  <div class="card"><h2>Category list <span class="st ok">${CATS.filter(c=>c.active).length} active</span></h2>
+   <div class="tw"><table><thead><tr><th>Code</th><th>Category</th><th>Language</th><th class="num">Books</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <p style="margin:8px 0 0;color:var(--ink-2)">Inactive categories stay on existing books but are hidden when adding new books.</p>
+  </div>
+  <div class="card" style="align-self:start"><h2>Add a category</h2><div class="stack" style="gap:10px">
+   <label class="f">Category name *<input type="text" id="n-name" placeholder="e.g. Dictionaries (Arabic)"></label>
+   <div class="row"><label class="f">Code<span class="h">Short code for labels</span><input type="text" id="n-code" placeholder="e.g. DIC-A" maxlength="8"></label><label class="f">Language<span class="h">&nbsp;</span><select id="n-lang">${LANGS.map(l=>`<option>${l}</option>`).join('')}</select></label></div>
+   ${ST.err?`<p class="msg">${ST.err}</p>`:''}
+   <div class="sum"><span>Appears in all category lists right away.</span><button class="btn" id="n-add">${ic('plus')}Add category</button></div>
+   <div class="notice warn">${ic('info')}<div>Need to split a category? Add the new ones here (e.g. Dictionaries (English) and Dictionaries (Urdu)), then map each old category to the right one in <b>Old categories clean-up</b>.</div></div>
+  </div></div>
+ </div>`}
+
+function mapTab(){
+ const q=ST.mapQ.trim().toLowerCase();
+ const list=OLD.map((o,i)=>({o,i})).filter(({o})=>(!q||o.old.toLowerCase().includes(q))&&(ST.mapShow=='all'||(ST.mapShow=='todo'&&!o.to&&!o.applied)||(ST.mapShow=='ready'&&o.to&&!o.applied)||(ST.mapShow=='done'&&o.applied)));
+ const ready=OLD.filter(o=>o.to&&!o.applied),selN=Object.values(ST.sel).filter(Boolean).length;
+ const opts=v=>`<option value="">Not decided yet</option>${CATS.filter(c=>c.active).map(c=>`<option ${v==c.name?'selected':''}>${c.name}</option>`).join('')}<option value="__new">+ Create new category…</option>`;
+ return `<div class="card">
+  <h2>Map each old category to a new one <span class="st ${ready.length?'warn':'mute'}">${ready.length} ready · ${OLD.filter(o=>o.applied).length} done</span></h2>
+  <p style="margin:0 0 10px">Nothing changes until you press <b>Apply mapping</b>. Suggestions are only a starting point: change any row, leave it “Not decided yet” to skip it, or send similar old categories to different new ones (e.g. <b>Dictionary Urdu</b> → Dictionaries (Urdu), <b>Eng Dictionary</b> → Dictionaries (English)).</p>
+  <div class="row" style="align-items:center;margin-bottom:10px">
+   <label class="f" style="flex:2 1 220px">Find old category<div class="scan">${ic('search')}<input type="search" id="m-q" placeholder="e.g. dictionary" value="${ST.mapQ}"></div></label>
+   <div class="chips" style="flex:3 1 auto">${[['all','All'],['todo','Not decided'],['ready','Ready'],['done','Applied']].map(c=>`<button class="chip ${ST.mapShow==c[0]?'on':''}" data-ms="${c[0]}">${c[1]}</button>`).join('')}</div>
+  </div>
+  ${selN?`<div class="notice ok" style="margin-bottom:10px;align-items:center;flex-wrap:wrap"><span>${selN} selected · set all to</span><select id="m-bulk" style="max-width:240px">${opts(ST.bulk)}</select><button class="btn" id="m-bulkgo">Set</button><button class="btn ghost" id="m-clear">Clear selection</button></div>`:''}
+  ${list.length?`<div class="tw"><table><thead><tr><th><input type="checkbox" id="m-all" aria-label="Select all shown"></th><th>Old category</th><th class="num">Books</th><th>Map to</th><th>Status</th></tr></thead><tbody>
+  ${list.map(({o,i},k)=>`<tr class="still"><td>${o.applied?'':`<input type="checkbox" data-ms2="${i}" ${ST.sel[i]?'checked':''} aria-label="Select">`}</td><td><b>${o.old}</b></td><td class="num">${o.books}</td>
+   <td>${o.applied?`<b>${o.to}</b>`:ST.newFor===i?`<div class="acts"><input type="text" id="m-newname" placeholder="New category name" value="${o.old.replace(/\b\w/g,m=>m.toUpperCase())}" style="max-width:220px"><button class="btn" id="m-newok">Create</button><button class="btn ghost" id="m-newno">Cancel</button></div>`:`<select data-map="${i}" aria-label="Map ${o.old} to" style="max-width:260px">${opts(o.to)}</select>`}</td>
+   <td>${o.applied?'<span class="st ok">Applied</span>':!o.to?'<span class="st mute">Not decided</span>':o.sugg?'<span class="st warn">Suggested</span>':'<span class="st ok">Ready</span>'}</td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><b>No old categories match</b>Clear the search or pick another filter.</div>`}
+  ${ST.confirm?`<div class="inline-confirm" style="margin-top:12px"><b>Move ${ready.reduce((s,o)=>s+o.books,0)} books from ${ready.length} old categories?</b>
+    <div>${[...new Set(ready.map(o=>o.to))].map(t=>`${t}: ${ready.filter(o=>o.to==t).map(o=>o.old).join(', ')}`).join('<br>')}</div>
+    <span>Rows marked “Not decided yet” are left as they are.</span><div class="acts"><button class="btn" id="m-yes">Apply mapping</button><button class="btn ghost" id="m-no">Go back</button></div></div>`
+  :`<div class="sum" style="margin-top:12px"><span>${OLD.filter(o=>!o.to&&!o.applied).length} not decided · these will be skipped</span><button class="btn" id="m-apply" ${ready.length?'':'disabled'}>Apply mapping (${ready.length})</button></div>`}
+ </div>`}
+
+function rulesTab(){
+ const n=(id,v,min=0)=>`<input type="number" min="${min}" id="${id}" value="${v}" data-rule style="max-width:110px">`;
+ return `<div class="grid g2">
+  <div class="card"><h2>Loan rules by borrower type</h2>
+   <div class="tw"><table><thead><tr><th>Borrower</th><th>Max books at a time</th><th>Loan period (days)</th><th>Renewals allowed</th></tr></thead><tbody>
+    <tr class="still"><td><b>Student</b></td><td>${n('r-smax',RULES.student.max,1)}</td><td>${n('r-sdays',RULES.student.days,1)}</td><td>${n('r-sren',RULES.student.renew)}</td></tr>
+    <tr class="still"><td><b>Staff</b></td><td>${n('r-tmax',RULES.staff.max,1)}</td><td>${n('r-tdays',RULES.staff.days,1)}</td><td>${n('r-tren',RULES.staff.renew)}</td></tr>
+   </tbody></table></div></div>
+  <div class="card"><h2>Fine rules</h2>
+   <div class="tw"><table><tbody>
+    <tr class="still"><th style="width:55%">Fine per late day (Rs)</th><td>${n('r-fine',RULES.fine)}</td></tr>
+    <tr class="still"><th>Grace days before fine starts</th><td>${n('r-grace',RULES.grace)}</td></tr>
+    <tr class="still"><th>Damaged book · % of price</th><td>${n('r-dmg',RULES.damaged)}</td></tr>
+    <tr class="still"><th>Lost book · % of price</th><td>${n('r-lost',RULES.lost)}</td></tr>
+   </tbody></table></div></div>
+ </div>
+ <div class="card" style="margin-top:14px"><div class="sum" style="border:0;padding:0"><span>${ST.rulesDirty?'<span class="st warn">Unsaved changes</span>':'<span class="st ok">All rules saved</span>'} Example: a student ${RULES.grace+3} days late pays ${rs(3*RULES.fine)} with these saved rules.</span>
+  <div class="acts"><button class="btn ghost" id="r-reset" ${ST.rulesDirty?'':'disabled'}>Discard changes</button><button class="btn" id="saveRules" ${ST.rulesDirty?'':'disabled'}>Save rules</button></div></div></div>`}
+
+V.settings=()=>`<div class="view">
+ <div class="head"><div><h1>Categories &amp; rules</h1><p>Set up your category list, map the old categories to it, and set loan and fine rules.</p></div></div>
+ ${settingsTabs()}
+ ${ST.tab=='cats'?catsTab():ST.tab=='map'?mapTab():rulesTab()}
+</div>`;
+V.settings.after=()=>{
+ const $=id=>document.getElementById(id),q=fn=>()=>{fn();render(true)};
+ document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ST.tab=b.dataset.st;ST.err='';ST.edit=ST.del=null;ST.confirm=false;render()});
+ if(ST.tab=='cats'){
+  $('n-add').onclick=()=>{const name=$('n-name').value.trim(),code=($('n-code').value.trim()||name.slice(0,3)).toUpperCase();
+   if(!name){ST.err='Enter a category name.';render(true);return}
+   if(CATS.some(c=>c.name.toLowerCase()==name.toLowerCase())){ST.err=`“${name}” already exists.`;render(true);return}
+   if(CATS.some(c=>c.code==code)){ST.err=`Code ${code} is already used. Choose another code.`;render(true);return}
+   CATS.push({code,name,lang:$('n-lang').value,active:true});ST.err='';toast(`Category “${name}” added`,'ok');render(true)};
+  document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=q(()=>{ST.edit=+b.dataset.ed;ST.del=null}));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=q(()=>{ST.del=+b.dataset.del;ST.edit=null;ST.delTo=''}));
+  if($('e-cancel'))$('e-cancel').onclick=q(()=>ST.edit=null);
+  if($('e-save'))$('e-save').onclick=()=>{const c=CATS[ST.edit],name=$('e-name').value.trim(),code=$('e-code').value.trim().toUpperCase();
+   if(!name){toast('Category name cannot be empty','bad');return}
+   if(CATS.some((x,i)=>i!=ST.edit&&x.name.toLowerCase()==name.toLowerCase())){toast(`“${name}” already exists`,'bad');return}
+   BOOKS.forEach(b=>{if(b.cat==c.name)b.cat=name});OLD.forEach(o=>{if(o.to==c.name)o.to=name});
+   Object.assign(c,{name,code:code||c.code,lang:$('e-lang').value,active:$('e-act').value=='1'});ST.edit=null;toast('Category saved','ok');render(true)};
+  if($('d-to'))$('d-to').onchange=e=>ST.delTo=e.target.value;
+  if($('d-no'))$('d-no').onclick=q(()=>ST.del=null);
+  if($('d-yes'))$('d-yes').onclick=()=>{const c=CATS[ST.del],n=catBooks(c.name);
+   if(n&&!ST.delTo){toast('Choose where to move the books first','bad');return}
+   BOOKS.forEach(b=>{if(b.cat==c.name)b.cat=ST.delTo});OLD.forEach(o=>{if(o.to==c.name&&!o.applied)o.to=''});
+   CATS.splice(ST.del,1);ST.del=null;toast(n?`${n} book(s) moved to ${ST.delTo}; “${c.name}” deleted`:`“${c.name}” deleted`,'ok');render(true)};
+ }
+ if(ST.tab=='map'){
+  const mq=$('m-q');mq.oninput=e=>{ST.mapQ=e.target.value;const pos=e.target.selectionStart;render(true);const n=$('m-q');n.focus();n.setSelectionRange(pos,pos)};
+  document.querySelectorAll('[data-ms]').forEach(b=>b.onclick=q(()=>ST.mapShow=b.dataset.ms));
+  document.querySelectorAll('[data-map]').forEach(s=>s.onchange=()=>{const i=+s.dataset.map;if(s.value=='__new'){ST.newFor=i}else{OLD[i].to=s.value;OLD[i].sugg=false}render(true)});
+  document.querySelectorAll('[data-ms2]').forEach(c=>c.onchange=q(()=>ST.sel[+c.dataset.ms2]=c.checked));
+  if($('m-all'))$('m-all').onchange=e=>{document.querySelectorAll('[data-ms2]').forEach(c=>ST.sel[+c.dataset.ms2]=e.target.checked);render(true)};
+  if($('m-bulk'))$('m-bulk').onchange=e=>ST.bulk=e.target.value;
+  if($('m-bulkgo'))$('m-bulkgo').onclick=()=>{if(ST.bulk=='__new'){toast('Create the category in the Categories tab first, then set it here','bad');return}Object.keys(ST.sel).forEach(i=>{if(ST.sel[i]){OLD[i].to=ST.bulk;OLD[i].sugg=false}});ST.sel={};render(true)};
+  if($('m-clear'))$('m-clear').onclick=q(()=>ST.sel={});
+  if($('m-newno'))$('m-newno').onclick=q(()=>ST.newFor=null);
+  if($('m-newok'))$('m-newok').onclick=()=>{const name=$('m-newname').value.trim();if(!name){toast('Enter a name','bad');return}
+   if(!CATS.some(c=>c.name.toLowerCase()==name.toLowerCase()))CATS.push({code:name.replace(/[^A-Za-z]/g,'').slice(0,4).toUpperCase(),name,lang:'English',active:true});
+   OLD[ST.newFor].to=CATS.find(c=>c.name.toLowerCase()==name.toLowerCase()).name;OLD[ST.newFor].sugg=false;ST.newFor=null;toast(`Category “${name}” created`,'ok');render(true)};
+  if($('m-apply'))$('m-apply').onclick=q(()=>ST.confirm=true);
+  if($('m-no'))$('m-no').onclick=q(()=>ST.confirm=false);
+  if($('m-yes'))$('m-yes').onclick=()=>{const r=OLD.filter(o=>o.to&&!o.applied);r.forEach(o=>o.applied=true);ST.confirm=false;toast(`${r.reduce((s,o)=>s+o.books,0)} books moved from ${r.length} old categories`,'ok');render(true)};
+ }
+ if(ST.tab=='rules'){
+  document.querySelectorAll('[data-rule]').forEach(i=>i.oninput=()=>{if(!ST.rulesDirty){ST.rulesDirty=true;const s=$('saveRules'),r=$('r-reset');s.disabled=false;r.disabled=false;s.closest('.sum').querySelector('span .st').outerHTML='<span class="st warn">Unsaved changes</span>'}});
+  $('r-reset').onclick=q(()=>ST.rulesDirty=false);
+  $('saveRules').onclick=()=>{const g=(id,min)=>Math.max(min,parseInt($(id).value)||0);
+   Object.assign(RULES.student,{max:g('r-smax',1),days:g('r-sdays',1),renew:g('r-sren',0)});Object.assign(RULES.staff,{max:g('r-tmax',1),days:g('r-tdays',1),renew:g('r-tren',0)});
+   RULES.fine=g('r-fine',0);RULES.grace=g('r-grace',0);RULES.damaged=Math.min(100,g('r-dmg',0));RULES.lost=Math.min(200,g('r-lost',0));
+   ST.rulesDirty=false;toast('Loan and fine rules saved','ok');shell();render(true)};
+ }
+};
+
+function render(quiet){const v=document.getElementById('view');v.classList.toggle('quiet',!!quiet);v.innerHTML=V[cur]();V[cur].after&&V[cur].after()}
+try{const s=localStorage.getItem('fcms-lib-tab');if(s&&V[s])cur=s}catch(e){}
+shell();render();
+</script>
